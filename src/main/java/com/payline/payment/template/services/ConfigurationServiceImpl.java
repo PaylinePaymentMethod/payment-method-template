@@ -22,11 +22,15 @@ import java.util.*;
 public class ConfigurationServiceImpl implements ConfigurationService {
     private static final Logger LOGGER = LogManager.getLogger(ConfigurationServiceImpl.class);
 
+    public static final String RELEASE_PROPERTIES_ERROR = "An error occurred reading the file: release.properties";
+
     private TemplateHttpClient httpClient = new TemplateHttpClient();
-    private final LocalizationService localization;
+    private LocalizationService localization;
+    private ReleaseInformation releaseInformation;
 
     public ConfigurationServiceImpl() {
         this.localization = LocalizationImpl.getInstance();
+        this.releaseInformation = initReleaseInformation();
     }
 
     @Override
@@ -153,15 +157,17 @@ public class ConfigurationServiceImpl implements ConfigurationService {
         return errors;
     }
 
-    @Override
-    public ReleaseInformation getReleaseInformation() {
+    /**
+     * Initialize the ReleaseInformation
+     * @return
+     */
+    public ReleaseInformation initReleaseInformation() {
         final Properties props = new Properties();
         try {
             props.load(ConfigurationServiceImpl.class.getClassLoader().getResourceAsStream("release.properties"));
         } catch (IOException e) {
-            final String message = "An error occurred reading the file: release.properties";
-            LOGGER.error(message);
-            throw new RuntimeException(message, e);
+            LOGGER.error(RELEASE_PROPERTIES_ERROR);
+            throw new RuntimeException(RELEASE_PROPERTIES_ERROR, e);
         }
 
         final LocalDate date = LocalDate.parse(props.getProperty("release.date"), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
@@ -169,6 +175,14 @@ public class ConfigurationServiceImpl implements ConfigurationService {
                 .withDate(date)
                 .withVersion(props.getProperty("release.version"))
                 .build();
+    }
+
+    @Override
+    public ReleaseInformation getReleaseInformation() {
+        if (null == releaseInformation) {
+            throw new RuntimeException(RELEASE_PROPERTIES_ERROR);
+        }
+        return releaseInformation;
     }
 
     @Override
